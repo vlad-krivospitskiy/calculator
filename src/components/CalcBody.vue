@@ -1,67 +1,98 @@
 <template>
-  <div class="wrapper">
+  <div class="wrapper" :class="{ 'dark-mode': isDarkMode }">
+    <div class="checkbox-wrapper-51">
+      <input id="dark-mode-toggle" v-model="isDarkMode" type="checkbox" />
+      <label class="toggle" for="dark-mode-toggle">
+        <span>
+          <svg viewBox="0 0 10 10" height="10px" width="10px">
+            <path
+              d="M5,1 L5,1 C2.790861,1 1,2.790861 1,5 L1,5 C1,7.209139 2.790861,9 5,9 L5,9 C7.209139,9 9,7.209139 9,5 L9,5 C9,2.790861 7.209139,1 5,1 L5,9 L5,1 Z"
+            ></path>
+          </svg>
+        </span>
+      </label>
+    </div>
     <div class="calculator">
       <div class="show-block">
-        
-        <CalcResults :result="result"/>
-        <CalcOperations :operations="operations"/>
+        <CalcResults :result="result" />
       </div>
       <div class="buttons_block">
-        <div class="block_1">
-          <button class="btn clear" @click="clear">AC</button>
-          <button class="btn delete" @click="deleteSymbol">x</button>
-          <button class="btn" @click="click">/</button>
-          <button class="btn" @click="click">*</button>
-        </div>
-        <div class="block_2">
-          <button class="btn" @click="click">7</button>
-          <button class="btn" @click="click">8</button>
-          <button class="btn" @click="click">9</button>
-          <button class="btn" @click="click">-</button>
-        </div>
-        <div class="block_3">
-          <button class="btn" @click="click">4</button>
-          <button class="btn" @click="click">5</button>
-          <button class="btn" @click="click">6</button>
-          <button class="btn plus" @click="click">+</button>
-        </div>
-        <div class="block_4">
-          <button class="btn" @click="click">1</button>
-          <button class="btn" @click="click">2</button>
-          <button class="btn" @click="click">3</button>
-          <button class="btn equal" @click="calculate">=</button>
-        </div>
-        <div class="block_5">
-          <button class="btn null">0</button>
-          <button class="btn">.</button>
+        <div
+          v-for="(block, index) in buttonData"
+          :key="index"
+          :class="'block_' + (index + 1)"
+        >
+          <button
+            v-for="button in block"
+            :key="button.label"
+            :class="['btn', button.class]"
+            @click="handleButtonClick(button)"
+          >
+            {{ button.label }}
+          </button>
         </div>
       </div>
     </div>
     <div class="calc-shadow"></div>
-    <input type="checkbox" id="switch" />
-    <label for="switch">Toggle</label>
   </div>
 </template>
 
 <script>
 import CalcResults from "./CalcResults";
-import CalcOperations from "./CalcOperations";
 
 export default {
   name: "CalculatorBody",
-  components: { CalcResults, CalcOperations },
+  components: { CalcResults },
   data() {
     return {
       result: "",
       operations: "",
+      showOperations: false,
+      isDarkMode: false,
+      buttonData: [
+        [
+          { label: "AC", class: "clear", action: "clear" },
+          { label: "x", class: "delete", action: "deleteSymbol" },
+          { label: "/", class: "div", action: "click" },
+          { label: "*", class: "mult", action: "click" },
+        ],
+        [
+          { label: "7", class: "", action: "click" },
+          { label: "8", class: "", action: "click" },
+          { label: "9", class: "", action: "click" },
+          { label: "-", class: "minus", action: "click" },
+        ],
+        [
+          { label: "4", class: "", action: "click" },
+          { label: "5", class: "", action: "click" },
+          { label: "6", class: "", action: "click" },
+          { label: "+", class: "plus", action: "click" },
+        ],
+        [
+          { label: "1", class: "", action: "click" },
+          { label: "2", class: "", action: "click" },
+          { label: "3", class: "", action: "click" },
+          { label: "=", class: "equal", action: "calculate" },
+        ],
+        [
+          { label: "0", class: "null", action: "click" },
+          { label: ".", class: "", action: "click" },
+        ],
+      ],
     };
   },
   methods: {
     click(e) {
-      this.result += e.target.textContent;
+      if (e.target.textContent === "." && this.result.includes(".")) {
+        return;
+      }
+      if (this.result.length < 12) {
+        this.result += e.target.textContent;
+      }
     },
     clear() {
       this.result = "";
+      this.operations = "";
     },
     deleteSymbol() {
       this.result = this.result.slice(0, -1);
@@ -75,19 +106,9 @@ export default {
           "/": (a, b) => a / b,
         };
 
-        const tokens = [];
-        let currentToken = "";
-
-        for (let char of this.result) {
-          if (operators[char]) {
-            tokens.push(parseFloat(currentToken));
-            tokens.push(char);
-            currentToken = "";
-          } else {
-            currentToken += char;
-          }
-        }
-        tokens.push(parseFloat(currentToken));
+        const tokens = this.result.split(/([+\-*/])/).map((token) => {
+          return isNaN(token) ? token : parseFloat(token);
+        });
 
         let total = tokens.shift();
         while (tokens.length > 0) {
@@ -97,10 +118,27 @@ export default {
         }
 
         this.result = total.toString();
-        this.operations = this.result;
+        if (this.result === "NaN") {
+          this.result = "Ошибка: Не число!";
+        }
+        if (this.result.length > 12) {
+          this.result.toFixed();
+        }
+        this.showOperations = true;
       } catch (error) {
         this.result = "Ошибка";
         this.operations = "";
+      }
+    },
+    handleButtonClick(button) {
+      if (button.action === "click") {
+        this.click({ target: { textContent: button.label } });
+      } else if (button.action === "clear") {
+        this.clear();
+      } else if (button.action === "deleteSymbol") {
+        this.deleteSymbol();
+      } else if (button.action === "calculate") {
+        this.calculate();
       }
     },
   },
@@ -110,31 +148,53 @@ export default {
 <style>
 @import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz@6..12&family=Poppins:wght@500&display=swap");
 .wrapper {
+  width: 100%;
+  height: 100;
   display: flex;
   flex-direction: row;
   justify-content: center;
   align-items: center;
   background: #daf0ff;
+  user-select: none;
 }
+.wrapper.dark-mode {
+  background: rgb(2, 0, 36);
+  background: linear-gradient(
+    90deg,
+    rgba(2, 0, 36, 1) 0%,
+    rgba(54, 129, 180, 1) 97%
+  );
+}
+.wrapper.dark-mode .calculator {
+  background: #f1f2f5;
+  backdrop-filter: blur(51px);
+}
+
+.wrapper.dark-mode .btn {
+  background-color: #ffffff;
+}
+.wrapper.dark-mode .mult,
+.wrapper.dark-mode .div,
+.wrapper.dark-mode .minus,
+.wrapper.dark-mode .plus {
+  background: #005db2;
+}
+.wrapper.dark-mode .equal {
+  background: #19acff;
+  box-shadow: -9px 13px 23px 0px rgba(0, 163, 255, 0.65),
+    -3px 4px 11px 0px #b0dfff inset;
+}
+
 .calculator {
   width: 375px;
   height: 812px;
   border-radius: 39px;
   background: linear-gradient(223deg, #17181a 0%, #17181a 100%);
   margin: 20px;
+  box-shadow: 25px 25px 63px -10px rgba(0, 107, 181, 0.63);
   z-index: 2;
 }
-/* .calc-shadow {
-  width: 362px;
-  height: 568px;
-  border-radius: 39px;
-  background: rgba(0, 68, 115, 0.72);
-  filter: blur(90.5px);
-  position: absolute;
-  left: 750px;
-  top: 180px;
-  z-index: -1;
-} */
+
 .show-block {
   width: 75%;
   display: flex;
@@ -170,6 +230,16 @@ export default {
   line-height: normal;
   cursor: pointer;
 }
+.mult,
+.div,
+.minus,
+.plus {
+  background: #005db2;
+}
+.equal {
+  background: #1991ff;
+  color: #b2daff;
+}
 .btn:hover {
   filter: brightness(120%);
   transition: 0.4s;
@@ -204,47 +274,78 @@ export default {
   margin-top: 42px;
   height: 105px;
 }
-input[type="checkbox"] {
-  height: 0 !important;
-  width: 0 !important;
-  visibility: hidden !important;
-  z-index: 10;
+.checkbox-wrapper-51 input[type="checkbox"] {
+  visibility: hidden;
+  display: none;
 }
 
-label {
-  cursor: pointer;
-  text-indent: -9999px;
-  width: 200px;
-  height: 100px;
-  background: grey;
-  display: block;
-  border-radius: 100px;
+.checkbox-wrapper-51 .toggle {
   position: relative;
+  display: block;
+  width: 42px;
+  height: 24px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transform: translate3d(0, 0, 0);
 }
 
-label:after {
+.checkbox-wrapper-51 .toggle:before {
   content: "";
+  position: relative;
+  top: 1px;
+  left: 1px;
+  width: 40px;
+  height: 22px;
+  display: block;
+  background: #c8ccd4;
+  border-radius: 12px;
+  transition: background 0.2s ease;
+}
+
+.checkbox-wrapper-51 .toggle span {
   position: absolute;
-  top: 5px;
-  left: 5px;
-  width: 90px;
-  height: 90px;
+  top: 0;
+  left: 0;
+  width: 24px;
+  height: 24px;
+  display: block;
   background: #fff;
-  border-radius: 90px;
-  transition: 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(154, 153, 153, 0.75);
+  transition: all 0.2s ease;
 }
 
-input:checked + label {
-  background: #bada55; 
+.checkbox-wrapper-51 .toggle span svg {
+  margin: 7px;
+  fill: none;
 }
 
-input:checked + label:after {
-  left: calc(100% - 5px);
-  transform: translateX(-100%);
+.checkbox-wrapper-51 .toggle span svg path {
+  stroke: #c8ccd4;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 24;
+  stroke-dashoffset: 0;
+  transition: all 0.5s linear;
 }
 
-label:active:after {
-  width: 130px;
+.checkbox-wrapper-51 input[type="checkbox"]:checked + .toggle:before {
+  background: #1175c7;
 }
 
+.checkbox-wrapper-51 input[type="checkbox"]:checked + .toggle span {
+  transform: translateX(18px);
+}
+
+.checkbox-wrapper-51 input[type="checkbox"]:checked + .toggle span path {
+  stroke: #000000;
+  stroke-dasharray: 25;
+  stroke-dashoffset: 25;
+}
+.checkbox-wrapper-51 {
+  position: absolute;
+  left: 20%;
+  top: 49vh;
+}
 </style>
