@@ -14,6 +14,7 @@
     </div>
     <div class="calculator">
       <div class="show-block">
+        <CalcOperations :operations="operations" />
         <CalcResults :result="result" />
       </div>
       <div class="buttons_block">
@@ -38,21 +39,21 @@
 </template>
 
 <script>
+import CalcOperations from "./CalcOperations";
 import CalcResults from "./CalcResults";
 
 export default {
   name: "CalculatorBody",
-  components: { CalcResults },
+  components: { CalcOperations, CalcResults },
   data() {
     return {
       result: "",
       operations: "",
-      showOperations: false,
       isDarkMode: false,
       buttonData: [
         [
           { label: "AC", class: "clear", action: "clear" },
-          { label: "x", class: "delete", action: "deleteSymbol" },
+          { label: "\u{25C5}", class: "delete", action: "deleteSymbol" },
           { label: "/", class: "div", action: "click" },
           { label: "*", class: "mult", action: "click" },
         ],
@@ -83,15 +84,19 @@ export default {
   },
   methods: {
     click(e) {
-      if (e.target.textContent === "." && this.result.includes(".")) {
+      const clickedValue = e.target.textContent;
+      if (clickedValue === "." && this.result.includes(".")) {
         return;
       }
-      if (this.result.length < 12) {
-        this.result += e.target.textContent;
+
+      if (this.result === "0" && clickedValue !== ".") {
+        this.result = clickedValue;
+      } else if (this.result.length < 12) {
+        this.result += clickedValue;
       }
     },
     clear() {
-      this.result = "";
+      this.result = "0";
       this.operations = "";
     },
     deleteSymbol() {
@@ -103,7 +108,7 @@ export default {
           "+": (a, b) => a + b,
           "-": (a, b) => a - b,
           "*": (a, b) => a * b,
-          "/": (a, b) => a / b,
+          "/": (a, b) => (b !== 0 ? a / b : "Ошибка: Деление на ноль!"),
         };
 
         const tokens = this.result.split(/([+\-*/])/).map((token) => {
@@ -111,20 +116,27 @@ export default {
         });
 
         let total = tokens.shift();
+        let operationsString = total.toString();
+
         while (tokens.length > 0) {
           const operator = tokens.shift();
           const operand = tokens.shift();
           total = operators[operator](total, operand);
+          operationsString += ` ${operator} ${operand}`;
         }
 
-        this.result = total.toString();
-        if (this.result === "NaN") {
-          this.result = "Ошибка: Не число!";
+        if (typeof total !== "string") {
+          this.result = `= ${total.toString()}`;
+          this.operations = operationsString;
+          if (this.result === "NaN") {
+            this.result = "Ошибка: NaN";
+          }
+          if (this.result.length > 12) {
+            this.result = this.result.substring(0, 12);
+          }
+        } else {
+          this.result = total;
         }
-        if (this.result.length > 12) {
-          this.result.toFixed();
-        }
-        this.showOperations = true;
       } catch (error) {
         this.result = "Ошибка";
         this.operations = "";
